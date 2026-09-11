@@ -22,7 +22,8 @@
     "check:infection-guide": "node scripts/check-infection-guide.mjs",
     "check:install-guide": "node scripts/check-install-guide.mjs",
     "check:sw": "node scripts/check-sw-update.mjs",
-    "check:sw-cloudflare": "node scripts/check-sw-cloudflare.mjs"
+    "check:sw-cloudflare": "node scripts/check-sw-cloudflare.mjs",
+    "check:deploy": "node scripts/check-deploy.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

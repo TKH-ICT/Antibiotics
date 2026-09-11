@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+  存在しないパスに 404 を返すためのページ。
+  Cloudflare Pages は最上位に 404.html が無いと SPA とみなし、存在しないファイルにも
+  index.html を 200 で返す。旧ハッシュのJS/CSSにHTMLが返ると更新途中で白画面になるため置く。
+-->
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>ページが見つかりません</title>
+  </head>
+  <body style="max-width: 640px; margin: 48px auto; padding: 24px; font-family: system-ui, sans-serif">
+    <h1 style="font-size: 20px">ページが見つかりません</h1>
+    <p>URLが正しいか確認してください。</p>
+    <p><a href="/">アプリのトップへ戻る</a></p>
+  </body>
+</html>

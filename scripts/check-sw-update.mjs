@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -22,6 +22,10 @@ check(sw.includes('event.data === "skip-waiting"'), "利用者の更新操作で
 check(sw.includes("const currentAsset = async"), "旧ハッシュのJS/CSSから現行アセットへ回復できる");
 check(sw.includes('request.destination === "script"') && sw.includes('request.destination === "style"'), "JSとCSSの両方を回復対象にする");
 check(index.includes("abx-navi/chunk-recovery/v1"), "JS読込失敗時に端末側キャッシュを一度だけ自動修復する");
+// Cloudflare Pages の配信規則への対応（詳細は check-sw-cloudflare.mjs）
+check(!sw.includes('"./index.html"'), "アプリ本体は転送されない ./ でキャッシュする（/index.html は / へ308転送される）");
+check(existsSync(join(root, "dist", "404.html")), "404.htmlを配信し、存在しないファイルにindex.htmlが返らないようにする");
+check(sw.includes("const expectedType"), "JS/CSSとして要求したのにHTMLが返った応答を使わない");
 
 console.log(failures.length ? `\nService Worker検査: ${failures.length}件失敗` : "\nService Worker更新安全性: 全て合格");
 process.exit(failures.length ? 1 : 0);

@@ -36,7 +36,8 @@ function walk(dir) {
 
 const files = walk(dist)
   .map((f) => "./" + relative(dist, f).split(sep).join("/"))
-  .filter((f) => f !== "./sw.js")
+  // 404.html はアプリ本体ではない（配信先に存在しないパスへの応答用）
+  .filter((f) => f !== "./sw.js" && f !== "./404.html")
   .sort();
 
 // Cloudflare Pages は ./index.html を ./ へ 308 転送する。転送を経た応答を画面遷移に
@@ -44,8 +45,10 @@ const files = walk(dist)
 const APP_SHELL = "./";
 const assets = files.map((f) => (f === "./index.html" ? APP_SHELL : f));
 
-// 取得URLとアセットの中身から版を決める。どちらかが変わればキャッシュ名も変わる
+// SWの処理・取得URL・アセットの中身から版を決める。いずれかが変わればキャッシュ名も変わり、
+// 旧版の処理が保存した応答は activate で削除される
 const hash = createHash("sha256");
+hash.update(readFileSync(fileURLToPath(import.meta.url)));
 files.forEach((f, i) => {
   hash.update(assets[i]);
   hash.update(readFileSync(join(dist, f.slice(2))));
@@ -130,10 +133,16 @@ self.addEventListener("fetch", (event) => {
         return currentPath ? await cache.match(currentPath, { ignoreVary: true }) : null;
       };
 
+      // 配信先によっては存在しないファイルにも index.html を 200 で返す（SPA扱い）。
+      // JS/CSSとして要求したのにHTMLが返った応答は、欠落と同じに扱う
+      const expectedType = request.destination === "script" ? "javascript" : request.destination === "style" ? "text/css" : null;
+      const usable = (response) =>
+        response.ok && (!expectedType || (response.headers.get("Content-Type") ?? "").includes(expectedType));
+
       try {
         const response = await fetch(request);
-        if (response.ok && response.type === "basic") cache.put(request, response.clone());
-        if (!response.ok) {
+        if (usable(response) && response.type === "basic" && !response.redirected) cache.put(request, response.clone());
+        if (!usable(response)) {
           const fallback = await currentAsset();
           if (fallback) return fallback;
         }

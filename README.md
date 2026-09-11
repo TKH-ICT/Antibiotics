@@ -67,8 +67,16 @@ Cloudflare Pages でも配信できます（`https://antibiotics-4oo.pages.dev/`
 - Build output directory: `dist`
 - Root directory: 空欄
 
-Cloudflare Pages は `/index.html` を `/` へ 308 転送するため、Service Worker はアプリ本体を `./` として
-キャッシュします（転送を経た応答は画面遷移に使えず「このページに到達できません」になる）。
+Cloudflare Pages は GitHub Pages と配信規則が異なるため、次の対応をしています。
+いずれも `npm run build` 内の `check:sw` で検査するため、後退させる変更は Cloudflare 上のビルドで失敗します。
+
+- `/index.html` を `/` へ 308 転送する → Service Worker はアプリ本体を `./` としてキャッシュする
+  （転送を経た応答は画面遷移に使えず「このページに到達できません」になる）
+- 最上位に `404.html` が無いと、存在しないファイルにも `index.html` を 200 で返す（SPA扱い）
+  → `public/404.html` を置き、Service Worker も JS/CSS として要求したのに HTML が返った応答を使わない
+  （更新途中の旧ハッシュJS/CSSに HTML が返り、白画面になるのを防ぐ）
+
+デプロイ後は `npm run check:deploy` で公開URLを検査してください（白紙・転送・404 の再発をHTTPで確認）。
 
 ## ドキュメント
 
@@ -158,7 +166,8 @@ npm run check:tdm         # TDMの安全要件の回帰テスト（要 vite prev
 npm run check:disclaimer  # 適用範囲の明示とアプリの説明の回帰テスト（要 vite preview）
 npm run check:medical-ui   # 適応外表示・用量強調・菌種別からの遷移（要 vite preview）
 npm run check:sw           # 更新時の白画面防止・旧ハッシュ回復処理（build後）
-npm run check:sw-cloudflare # Cloudflare Pages（/index.html→/ 転送）での再訪問・オフライン起動（build後）
+npm run check:sw-cloudflare # Cloudflare Pagesの配信規則での再訪問・オフライン起動・更新途中（build後）
+npm run check:deploy       # 公開URLの配信内容（白紙・転送・404）の検査（デプロイ後）
 ```
 
 `check:tdm` は「患者条件が未入力のときに用量の既定値を出さない」という安全要件を含みます。

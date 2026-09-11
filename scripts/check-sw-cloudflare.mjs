@@ -2,9 +2,11 @@
 /**
  * Cloudflare Pages 上での再訪問を検査する（ビルド後に実行）
  *
- * Cloudflare Pages は /index.html を / へ 308 転送する。Service Worker が転送を経た
- * 応答を画面遷移に返すと、ブラウザが拒否して「このページに到達できません」になる。
- * dist/ を同じ転送規則で配信し、初回表示・再訪問・オフライン再訪問を確認する。
+ * Cloudflare Pages の配信規則を再現して dist/ を配信する。
+ *   - /index.html は / へ 308 転送する。Service Worker が転送を経た応答を画面遷移に
+ *     返すと、ブラウザが拒否して「このページに到達できません」になる。
+ *   - 存在しないパスは、最上位に 404.html があれば 404、無ければ index.html を 200 で
+ *     返す（SPA扱い）。後者では旧ハッシュのJS/CSSにHTMLが返り、更新途中で白画面になる。
  */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -33,7 +35,9 @@ const check = (condition, label) => {
   if (!condition) failures.push(label);
 };
 
-// Cloudflare Pages と同じく /index.html は / へ 308 転送する
+// true にすると 404.html の有無にかかわらず SPA扱い（Service Worker 側の防御を検査する）
+let forceSpaFallback = false;
+
 const server = createServer(async (req, res) => {
   const { pathname } = new URL(req.url, "http://localhost");
   if (pathname.endsWith("/index.html")) {
@@ -45,7 +49,9 @@ const server = createServer(async (req, res) => {
     const body = await readFile(join(dist, decodeURIComponent(file)));
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream" }).end(body);
   } catch {
-    res.writeHead(404).end("not found");
+    const notFound = forceSpaFallback ? null : await readFile(join(dist, "404.html")).catch(() => null);
+    if (notFound) res.writeHead(404, { "Content-Type": TYPES[".html"] }).end(notFound);
+    else res.writeHead(200, { "Content-Type": TYPES[".html"] }).end(await readFile(join(dist, "index.html")));
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -69,10 +75,29 @@ const visit = async () => {
 
 console.log("Cloudflare Pages（/index.html → / 転送）での表示");
 check(await visit(), "初回表示できる");
+const missing = await fetch(`${BASE}assets/index-OLDHASH.js`);
+check(missing.status === 404, "存在しないファイルは404を返す（404.htmlでSPA扱いを止める）");
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 10000 });
 check(await visit(), "Service Worker 有効化後にもう一度開ける");
 await context.setOffline(true);
 check(await visit(), "オフラインでもう一度開ける");
+await context.setOffline(false);
+
+console.log("\n存在しないパスにindex.htmlを返す配信先（SPA扱い）での更新途中");
+forceSpaFallback = true;
+// 旧index.htmlが参照していた旧ハッシュのCSSを読み込む（更新の競合を再現する）
+const oldCss = await page.evaluate(async () => {
+  const url = new URL("./assets/index-OLDHASH.css", document.baseURI).href;
+  const link = Object.assign(document.createElement("link"), { rel: "stylesheet", href: url });
+  await new Promise((resolve) => {
+    link.onload = link.onerror = resolve;
+    document.head.append(link);
+  });
+  const cached = await caches.match(url);
+  return { rules: link.sheet?.cssRules.length ?? 0, cachedType: cached?.headers.get("Content-Type") ?? null };
+});
+check(oldCss.rules > 0, "旧ハッシュのCSSに現行CSSを返す（HTMLを返さない）");
+check(!oldCss.cachedType?.includes("text/html"), "CSSとして要求されたHTMLをキャッシュしない");
 
 await browser.close();
 server.close();
