@@ -39,17 +39,23 @@ const files = walk(dist)
   .filter((f) => f !== "./sw.js")
   .sort();
 
-// アセットの中身から版を決める。内容が変わればキャッシュ名も変わる
+// Cloudflare Pages は ./index.html を ./ へ 308 転送する。転送を経た応答を画面遷移に
+// 返すとブラウザが拒否する（「このページに到達できません」）ため、./ として取得する
+const APP_SHELL = "./";
+const assets = files.map((f) => (f === "./index.html" ? APP_SHELL : f));
+
+// 取得URLとアセットの中身から版を決める。どちらかが変わればキャッシュ名も変わる
 const hash = createHash("sha256");
-for (const f of files) {
-  hash.update(f);
+files.forEach((f, i) => {
+  hash.update(assets[i]);
   hash.update(readFileSync(join(dist, f.slice(2))));
-}
+});
 const version = hash.digest("hex").slice(0, 12);
 
 const sw = `/* 自動生成 — scripts/make-sw.mjs。手で編集しないこと */
 const CACHE = "abx-navi-${version}";
-const ASSETS = ${JSON.stringify(files, null, 2)};
+const APP_SHELL = "${APP_SHELL}";
+const ASSETS = ${JSON.stringify(assets, null, 2)};
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -89,7 +95,11 @@ self.addEventListener("fetch", (event) => {
         const cache = await caches.open(CACHE);
         // ignoreVary: サーバが Vary: Accept-Encoding を返す場合、
         // 保存時とリクエスト時でヘッダが異なると一致しなくなるため無視する
-        const cached = await cache.match("./index.html", { ignoreVary: true });
+        const cached = await cache.match(APP_SHELL, { ignoreVary: true });
+        // 転送を経た応答は画面遷移に使えないため、本文とヘッダから作り直す
+        if (cached?.redirected) {
+          return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers: cached.headers });
+        }
         if (cached) return cached;
         try {
           return await fetch(request);
@@ -146,6 +156,6 @@ self.addEventListener("message", (event) => {
 
 writeFileSync(join(dist, "sw.js"), sw, "utf8");
 console.log(
-  `sw.js を生成しました — キャッシュ名 abx-navi-${version} ／ precache ${files.length} ファイル`,
+  `sw.js を生成しました — キャッシュ名 abx-navi-${version} ／ precache ${assets.length} ファイル`,
 );
-for (const f of files) console.log(`  ${f}`);
+for (const f of assets) console.log(`  ${f}`);

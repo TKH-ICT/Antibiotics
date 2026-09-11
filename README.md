@@ -57,6 +57,19 @@ GitHub Pages（一般公開）での配信は 2026-08-27 に決定済みです�
 適応外使用・採用薬・アンチバイオグラム等の院内固有情報は他施設に一般化できないため、初回起動時の確認画面・
 全画面フッタ・「アプリの説明」で適用範囲を明示しています（FR-012）。
 
+### Cloudflare Pages への公開
+
+Cloudflare Pages でも配信できます（`https://antibiotics-4oo.pages.dev/`）。GitHub 連携のビルド設定は次のとおりです。
+`dist/` はリポジトリに含まれないため、ビルドコマンドが空だとソースの `index.html` が配信され白紙になります。
+
+- Production branch: `claude/antibiotic-app-planning-b4e13g`（`main` ブランチは存在しない）
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: 空欄
+
+Cloudflare Pages は `/index.html` を `/` へ 308 転送するため、Service Worker はアプリ本体を `./` として
+キャッシュします（転送を経た応答は画面遷移に使えず「このページに到達できません」になる）。
+
 ## ドキュメント
 
 | ファイル | 内容 |
@@ -145,6 +158,7 @@ npm run check:tdm         # TDMの安全要件の回帰テスト（要 vite prev
 npm run check:disclaimer  # 適用範囲の明示とアプリの説明の回帰テスト（要 vite preview）
 npm run check:medical-ui   # 適応外表示・用量強調・菌種別からの遷移（要 vite preview）
 npm run check:sw           # 更新時の白画面防止・旧ハッシュ回復処理（build後）
+npm run check:sw-cloudflare # Cloudflare Pages（/index.html→/ 転送）での再訪問・オフライン起動（build後）
 ```
 
 `check:tdm` は「患者条件が未入力のときに用量の既定値を出さない」という安全要件を含みます。

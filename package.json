@@ -21,7 +21,8 @@
     "check:medical-ui": "node scripts/check-medical-ui.mjs",
     "check:infection-guide": "node scripts/check-infection-guide.mjs",
     "check:install-guide": "node scripts/check-install-guide.mjs",
-    "check:sw": "node scripts/check-sw-update.mjs"
+    "check:sw": "node scripts/check-sw-update.mjs",
+    "check:sw-cloudflare": "node scripts/check-sw-cloudflare.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
