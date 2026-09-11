@@ -1,9 +1,16 @@
-name: Deploy to GitHub Pages
+name: Retire GitHub Pages (moved to Cloudflare Pages)
+
+# アプリは Cloudflare Pages（https://antibiotics-4oo.pages.dev/）でのみ配信する。
+# GitHub Pages には移転案内と、旧版を端末から消す sw.js（retired-site/）だけを置く。
+# 旧版の利用者が移行し終えるまで GitHub Pages の公開は止めないこと（README 参照）。
 
 on:
   push:
     branches:
       - claude/antibiotic-app-planning-b4e13g
+    paths:
+      - retired-site/**
+      - .github/workflows/deploy.yml
   workflow_dispatch: {}
 
 permissions:
@@ -20,16 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+      # 存在しないパス（旧版のJS/CSS等）にも移転案内を返す
+      - run: cp retired-site/index.html retired-site/404.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: retired-site
 
   deploy:
     needs: build

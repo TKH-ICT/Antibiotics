@@ -34,32 +34,20 @@ npm run build      # 検証 + 型チェック + 本番ビルド
   自動表示されるインストールバナーまたはメニューの「アプリをインストール」から追加できます
 - **更新の反映**: 新しいビルドを配信すると、次回アクセス時に画面下部へ更新通知が出るので
   ボタン一つで最新版に切り替わります（`src/lib/sw.ts` の `applyUpdate`）
-- サブパス配信（例: `https://<user>.github.io/Antibiotics/`）でも `vite.config.ts` の
+- サブパス配信（例: `https://example.com/Antibiotics/`）でも `vite.config.ts` の
   `base: "./"` と `manifest.webmanifest` / `sw.js` の相対パス解決により問題なく動作します
 
-### GitHub Pages への公開
+### 公開（Cloudflare Pages）
 
-`.github/workflows/deploy.yml` により、対象ブランチへの push で自動的に
-`npm run build` → GitHub Pages へのデプロイが実行されます（GitHub Actions の
-Pages デプロイ機能を使用。`gh-pages` ブランチは使いません）。
+公開URL: **https://antibiotics-4oo.pages.dev/**（2026-09-11 に GitHub Pages から移行。要件 NFR-007）
 
-初回のみ、リポジトリの **Settings → Pages → Build and deployment → Source** を
-「GitHub Actions」に切り替える必要があります（リポジトリ管理者の操作）。
+一般公開・認証なしです。患者条件（体重・Cr等）は端末内でのみ計算し外部送信しないため（NFR-006）、
+公開範囲を広げても患者情報の漏えいリスクは生じません。適応外使用・採用薬・アンチバイオグラム等の
+院内固有情報は他施設に一般化できないため、初回起動時の確認画面・全画面フッタ・「アプリの説明」で
+適用範囲を明示しています（FR-012）。
 
-公開URLはプロジェクトページ形式になります: `https://<組織/ユーザー名>.github.io/Antibiotics/`
-
-> ワークフローのトリガーは現在のデフォルトブランチ（`claude/antibiotic-app-planning-b4e13g`）に
-> 設定しています。今後 `main` 等の恒久的なデフォルトブランチへ移行した場合は、
-> `.github/workflows/deploy.yml` の `on.push.branches` を書き換えてください。
-
-GitHub Pages（一般公開）での配信は 2026-08-27 に決定済みです（要件 NFR-007）。患者条件（体重・Cr等）は
-端末内でのみ計算し外部送信しないため（NFR-006）、公開範囲を広げても患者情報の漏えいリスクは生じません。
-適応外使用・採用薬・アンチバイオグラム等の院内固有情報は他施設に一般化できないため、初回起動時の確認画面・
-全画面フッタ・「アプリの説明」で適用範囲を明示しています（FR-012）。
-
-### Cloudflare Pages への公開
-
-Cloudflare Pages でも配信できます（`https://antibiotics-4oo.pages.dev/`）。GitHub 連携のビルド設定は次のとおりです。
+Cloudflare Pages の GitHub 連携で、本番ブランチへの push ごとに自動でビルド・デプロイされます。
+ビルド設定はダッシュボードで行います（リポジトリには含まれません）。
 `dist/` はリポジトリに含まれないため、ビルドコマンドが空だとソースの `index.html` が配信され白紙になります。
 
 - Production branch: `claude/antibiotic-app-planning-b4e13g`（`main` ブランチは存在しない）
@@ -77,6 +65,21 @@ Cloudflare Pages は GitHub Pages と配信規則が異なるため、次の対�
   （更新途中の旧ハッシュJS/CSSに HTML が返り、白画面になるのを防ぐ）
 
 デプロイ後は `npm run check:deploy` で公開URLを検査してください（白紙・転送・404 の再発をHTTPで確認）。
+
+### 旧公開先（GitHub Pages）の廃止手順
+
+旧URL `https://tkh-ict.github.io/Antibiotics/` には、アプリ本体ではなく `retired-site/` の移転案内だけを
+配信しています（`.github/workflows/deploy.yml`）。旧URLでホーム画面に追加した端末は旧版をキャッシュから
+起動し続けて更新が届かないため、`retired-site/sw.js` が端末側で旧版のキャッシュと登録を削除し、移転案内へ
+切り替えます。旧版の端末がこの sw.js を受け取るまで、**すぐに公開を止めないでください**。
+
+1. 移転案内の配信後、利用者に新URLへの移行（ホーム画面の追加し直し）を周知する
+2. 旧版の端末が一通り起動し終えるまで（目安：数週間）移転案内を置いておく
+3. `.github/workflows/deploy.yml` と `retired-site/` を削除し、リポジトリの
+   **Settings → Pages** で公開を停止する（リポジトリ管理者の操作）
+
+> 移管前の旧URL `https://teinekeijinkaier.github.io/Antibiotics/` は、リポジトリの移管
+> （TeineKeijinkaiER → TKH-ICT）で既に 404 になっており、その端末には移転案内が届きません。
 
 ## ドキュメント
 
