@@ -23,6 +23,7 @@ const openDrug = async (lane, mode, query) => {
   await page.goto(BASE, { waitUntil: "networkidle" });
   await click(lane);
   await click(mode);
+  await click("この条件で薬剤を選ぶ");
   await page.fill('input[aria-label="薬剤名を入力"]', query);
   await page.locator(".result").first().click();
 };
@@ -36,9 +37,29 @@ check(await page.locator(".offlabel-details .dose-conv").count() === 0, "適応�
 await adultDetails.locator("summary").click();
 check(await page.locator(".offlabel-details .offlabel-dose").count() > 0, "クリック後に適応外用量を表示する");
 
+console.log("選択した剤形だけを薬剤詳細に表示");
+await openDrug("内服薬", "成人", "シプロキサン");
+let routeText = await page.locator("main").innerText();
+check(routeText.includes("1回200-400mg 1日2回"), "内服: シプロフロキサシンの経口用量を表示する");
+check(!routeText.includes("400mg 12時間毎（最大1200mg/day）"), "内服: 注射通常量を表示しない");
+check(!routeText.includes("シプロフロキサシン点滴静注液400mg"), "内服: 注射製品・適応外情報を表示しない");
+check(!routeText.includes("当院採用注射抗菌薬一覧"), "内服: 注射製剤情報への導線を表示しない");
+
+await openDrug("注射薬", "成人", "シプロキサン");
+routeText = await page.locator("main").innerText();
+check(routeText.includes("400mg 12時間毎（最大1200mg/day）"), "注射: シプロフロキサシンの注射用量を表示する");
+check(!routeText.includes("1回200-400mg 1日2回"), "注射: 経口通常量を表示しない");
+check(!routeText.includes("シプロキサン錠200mg"), "注射: 内服製品・適応外情報を表示しない");
+
+await openDrug("内服薬", "成人", "アジスロマイシン");
+routeText = await page.locator("main").innerText();
+check(routeText.includes("1回500mg 1日1回 3日間"), "内服: アジスロマイシンの経口用量を表示する");
+check(!routeText.includes("ジスロマック点滴静注用500mg"), "内服: アジスロマイシンの注射製品を表示しない");
+
 // 集団の切替はラベル文言ではなくクラスで掴む。この検査の対象は適応外使用の出し分けであって
 // ボタンの文言ではないため（文言は check-navigation.mjs が見ている）、
 // 表記が変わってもここが落ちないようにする。
+await openDrug("注射薬", "成人", "セフェピム");
 await page.locator(".ctx-btn.switch").click();
 await page.waitForTimeout(300);
 const pediatricDetails = page.locator(".offlabel-details");

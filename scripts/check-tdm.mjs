@@ -67,6 +67,10 @@ const openDesigner = async (drugName) => {
     await page.locator('button:has-text("成人")').first().click();
     await page.waitForTimeout(200);
   }
+  if ((await page.locator('button:has-text("この条件で薬剤を選ぶ")').count()) > 0) {
+    await page.locator('button:has-text("この条件で薬剤を選ぶ")').first().click();
+    await page.waitForTimeout(200);
+  }
   await page.fill('input[aria-label="薬剤名を入力"]', drugName);
   await page.waitForTimeout(300);
   await page.locator(".result").first().click();

@@ -5,7 +5,7 @@ import { searchOrganisms } from "./lib/search";
 import { LANE_LABEL, OTHER_GENRE_LABEL, type AwareBucket, type DrugLane } from "./lib/lanes";
 import { PatientPanel, emptyPatient } from "./components/PatientPanel";
 import { DrugDetail } from "./components/DrugDetail";
-import { DrugList, LanePicker, ModePicker, OtherGenreMenu } from "./components/DrugLane";
+import { DrugList, LanePicker, ModePicker, OtherGenreMenu, PatientStep } from "./components/DrugLane";
 import type { DrugCategory } from "./types";
 import {
   Opening,
@@ -64,6 +64,8 @@ type View =
   | { type: "other" }
   /** 内服薬・注射薬・感染症別を選んだ直後の 成人／小児 */
   | { type: "mode"; lane: DrugLane | "infection" }
+  /** 内服薬・注射薬で集団を選んだ直後の患者条件 */
+  | { type: "patient"; lane: DrugLane }
   /** 薬剤名の入力欄と分類ボタン */
   | { type: "picker"; lane: DrugLane }
   /** AWaRe分類対象外のジャンル選択（内服薬レーンの「その他」） */
@@ -84,7 +86,7 @@ type View =
   | { type: "infection"; id: string }
   /** 適正使用の手引き（その他から開く） */
   | { type: "topic"; id: string }
-  | { type: "drug"; id: string }
+  | { type: "drug"; id: string; lane?: DrugLane }
   | { type: "organism"; id: string }
   | { type: "designer"; key: string; fromDrugId?: string }
   | { type: "about" }
@@ -163,7 +165,8 @@ export default function App() {
 
   const pickMode = (lane: DrugLane | "infection", m: PatientMode) => {
     setMode(m);
-    go(lane === "infection" ? { type: "infections" } : { type: "picker", lane });
+    setShowPatient(false);
+    go(lane === "infection" ? { type: "infections" } : { type: "patient", lane });
   };
 
   /** 薬剤レーン・感染症別レーン内でのみ集団を切り替える */
@@ -191,9 +194,15 @@ export default function App() {
 
   /** その画面が薬剤レーンの中か（集団バッジを出すか） */
   const laneOf = (): DrugLane | null => {
-    if (view.type === "picker" || view.type === "drugs" || view.type === "other-genre")
+    if (
+      view.type === "patient" ||
+      view.type === "picker" ||
+      view.type === "drugs" ||
+      view.type === "other-genre"
+    )
       return view.lane;
     if (view.type === "drug") {
+      if (view.lane) return view.lane;
       const d = DRUG_BY_ID.get(view.id);
       if (!d) return null;
       return d.adult?.po || d.pediatric?.po ? "oral" : "injectable";
@@ -374,6 +383,17 @@ export default function App() {
           </>
         )}
 
+        {/* ---------------- 患者条件 ---------------- */}
+        {view.type === "patient" && mode && (
+          <PatientStep
+            lane={view.lane}
+            mode={mode}
+            patient={patient}
+            onChange={setPatient}
+            onContinue={() => go({ type: "picker", lane: view.lane })}
+          />
+        )}
+
         {/* ---------------- 感染症別（FR-017） ---------------- */}
         {view.type === "infections" && mode && (
           <>
@@ -418,7 +438,7 @@ export default function App() {
             lane={view.lane}
             mode={mode}
             patient={patient}
-            onOpenDrug={(id) => go({ type: "drug", id })}
+            onOpenDrug={(id) => go({ type: "drug", id, lane: view.lane })}
             onPickBucket={(bucket) => go({ type: "drugs", lane: view.lane, bucket })}
             onPickOtherGenre={() => go({ type: "other-genre", lane: view.lane })}
             onPickClass={(drugClass) => go({ type: "drugs", lane: view.lane, drugClass })}
@@ -455,7 +475,7 @@ export default function App() {
               bucket={view.bucket}
               drugClass={view.drugClass}
               otherCategory={view.otherCategory}
-              onOpenDrug={(id) => go({ type: "drug", id })}
+              onOpenDrug={(id) => go({ type: "drug", id, lane: view.lane })}
             />
           </>
         )}
@@ -508,6 +528,7 @@ export default function App() {
             return (
               <DrugDetail
                 drug={drug}
+                lane={view.lane}
                 mode={mode ?? "adult"}
                 patient={patient}
                 onOpenDesigner={(key) => go({ type: "designer", key, fromDrugId: drug.id })}

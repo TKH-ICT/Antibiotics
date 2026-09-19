@@ -731,6 +731,62 @@ footer.foot {
 .top-btn.aware-reserve { color: var(--danger); border-color: var(--danger); }
 .top-btn.aware-other { color: var(--ink-3); border-color: var(--ink-3); }
 
+/* RapidMedと同じく、対象選択→患者条件を独立した大きな画面で進める */
+.flow-shell { max-width: 720px; margin: 0 auto; }
+.flow-step {
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.flow-title { margin: 0 0 18px; font-size: 20px; }
+.mode-choice {
+  grid-template-columns: 1fr auto;
+  place-items: center stretch;
+  text-align: left;
+  padding: 22px;
+  border-radius: 18px;
+  min-height: 112px;
+}
+.mode-choice > span:first-child { display: grid; }
+.mode-choice b { font-size: 30px; line-height: 1.2; }
+.mode-choice small { margin-top: 4px; font-size: 12px; font-weight: 500; opacity: 0.8; }
+.mode-choice-arrow {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: currentColor;
+  color: var(--surface);
+  font-size: 19px;
+}
+.flow-heading h2 { margin: 0; font-size: 23px; }
+.flow-heading p { margin: 3px 0 16px; color: var(--ink-3); font-size: 13px; }
+.patient-step .card { border-radius: 14px; padding: 18px; }
+.patient-step.adult .card { border-top: 4px solid var(--adult); }
+.patient-step.pediatric .card { border-top: 4px solid var(--paed); }
+.flow-note { margin: 12px 2px 0; color: var(--ink-3); font-size: 12.5px; }
+.flow-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 16px;
+}
+@media (max-width: 520px) {
+  .top-grid.two.mode-choices { grid-template-columns: 1fr; }
+  .mode-choice { min-height: 92px; padding: 18px; }
+}
+
 /* AWaRe の説明 */
 .aware-lead { font-size: 13.5px; color: var(--ink-2); line-height: 1.85; margin-bottom: 16px; }
 .aware-lead p { margin: 0 0 8px; }

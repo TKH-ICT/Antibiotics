@@ -42,6 +42,7 @@ const openDrug = async (lane, mode, name) => {
   await home();
   await click(lane);
   await click(mode);
+  await click("この条件で薬剤を選ぶ");
   await page.fill('input[aria-label="薬剤名を入力"]', name);
   await page.waitForTimeout(300);
   await page.locator(".result").first().click();
@@ -93,6 +94,8 @@ check((await page.locator(".top-btn").count()) === 2, "成人・小児の2ボタ
 
 // 一度選んだ後も、ホームから入り直せば必ず集団選択を経由する
 await click("成人");
+check((await page.locator(".patient-step").count()) === 1, "成人／小児の次に患者条件画面を出す");
+await click("この条件で薬剤を選ぶ");
 await page.locator('button:has-text("⌂ ホーム")').click();
 await click("内服薬");
 check((await page.locator(".top-btn").count()) === 2, "選択済みでも成人・小児画面を飛ばさない");
@@ -100,6 +103,7 @@ check((await page.locator(".top-btn").count()) === 2, "選択済みでも成人�
 /* ---- 内服薬のAWaRe選択 ---- */
 console.log("\n内服薬（AWaRe分類）");
 await click("成人");
+await click("この条件で薬剤を選ぶ");
 check(
   (await page.locator('input[aria-label="薬剤名を入力"]').count()) === 1,
   "薬剤名の入力欄がある",
@@ -170,13 +174,17 @@ check(await hasPatientButton(), "周術期では患者条件を出す（体重�
 await home();
 await click("内服薬");
 await click("成人");
-check(await hasPatientButton(), "薬剤レーンでは患者条件を出す");
+check((await page.locator(".patient-step").count()) === 1, "薬剤レーンでは患者条件を独立画面で出す");
+check((await page.locator("#f-age").count()) === 1, "成人の患者条件入力欄を表示する");
+await click("この条件で薬剤を選ぶ");
+check(await hasPatientButton(), "薬剤選択後も患者条件を変更できる");
 
 /* ---- 戻る／ホーム ---- */
 console.log("\n戻る／ホーム");
 await home();
 await click("内服薬");
 await click("成人");
+await click("この条件で薬剤を選ぶ");
 await click("Access");
 check((await page.locator(".navkey").count()) === 2, "戻る・ホームの2キーがある");
 await page.locator('.navkey:has-text("戻る")').click();
@@ -184,7 +192,10 @@ await page.waitForTimeout(250);
 check((await page.locator(".aware-lead").count()) === 1, "戻るで分類の選択へ戻る");
 await page.locator('.navkey:has-text("戻る")').click();
 await page.waitForTimeout(250);
-check((await page.locator(".top-btn.adult").count()) === 1, "さらに戻ると成人／小児の選択へ");
+check((await page.locator(".patient-step").count()) === 1, "さらに戻ると患者条件入力へ");
+await page.locator('.navkey:has-text("戻る")').click();
+await page.waitForTimeout(250);
+check((await page.locator(".top-btn.adult").count()) === 1, "患者条件から戻ると成人／小児の選択へ");
 await page.locator('.navkey:has-text("ホーム")').click();
 await page.waitForTimeout(250);
 check((await page.locator(".opening-art").count()) === 1, "ホームでオープニングへ戻る");
@@ -194,8 +205,6 @@ console.log("\n小児の患者条件と1日投与量");
 await home();
 await click("内服薬");
 await click("小児");
-await page.locator(".ctx-btn.patient").click();
-await page.waitForTimeout(250);
 check((await page.locator("#f-weight").count()) === 1, "小児: 体重の入力欄がある");
 for (const f of ["age", "sex", "height", "scr", "egfr", "rrt"]) {
   check((await page.locator(`#f-${f}`).count()) === 0, `小児: ${f} の欄を出さない`);
@@ -206,6 +215,7 @@ for (const f of ["age", "sex", "height", "scr", "egfr", "rrt"]) {
 // 20kg なら 400-800mg。絶対量として扱うと 90mg に誤クリップされる。
 await page.fill("#f-weight", "20");
 await page.waitForTimeout(300);
+await click("この条件で薬剤を選ぶ");
 await page.fill('input[aria-label="薬剤名を入力"]', "アモキシシリン");
 await page.waitForTimeout(350);
 await page.locator(".result").first().click();
@@ -250,6 +260,7 @@ console.log("\nその他（AWaRe分類対象外）のジャンル分け");
 await home();
 await click("内服薬");
 await click("成人");
+await click("この条件で薬剤を選ぶ");
 await click("その他");
 await page.waitForTimeout(250);
 const genreButtons = await page.locator(".top-btn").allInnerTexts();

@@ -3,6 +3,7 @@ import { RENAL_BAND_LABEL, OFFLABEL_CATEGORY_LABEL } from "../types";
 import { convertPerKg, renalRuleForPatient, resolveRenalBand } from "../lib/calc";
 import { offLabelForDrug } from "../lib/search";
 import { DISEASE_BY_ID } from "../data";
+import type { DrugLane } from "../lib/lanes";
 
 const ROUTE_LABEL: Record<Route, string> = {
   iv: "注射",
@@ -24,12 +25,28 @@ const RELATED_PAGES: Record<string, { key: string; label: string; sub: string }>
 
 type Props = {
   drug: Drug;
+  lane?: DrugLane;
   mode: PatientMode;
   patient: PatientState;
   onOpenDesigner: (key: string) => void;
   onOpenPage: (key: string) => void;
   onSwitchMode: () => void;
 };
+
+const INJECTABLE_PRODUCT = /注射|点滴|静注|筋注|静脈|バイアル|バッグ/;
+const ORAL_PRODUCT = /錠|カプセル|細粒|顆粒|ドライシロップ|シロップ|内服/;
+
+/** 製品名が複数並ぶ適応外使用から、選択した剤形に該当する製品名だけを残す。 */
+function productLabelForLane(label: string, lane?: DrugLane): string | null {
+  if (!lane) return label;
+  const products = label.split("、").map((part) => part.trim()).filter(Boolean);
+  const classified = products.filter((part) => INJECTABLE_PRODUCT.test(part) || ORAL_PRODUCT.test(part));
+  const matches = products.filter((part) =>
+    lane === "oral" ? ORAL_PRODUCT.test(part) : INJECTABLE_PRODUCT.test(part),
+  );
+  if (matches.length > 0) return matches.join("、");
+  return classified.length > 0 ? null : label;
+}
 
 function DoseRow({
   dose,
@@ -84,26 +101,48 @@ function DoseRow({
 
 export function DrugDetail({
   drug,
+  lane,
   mode,
   patient,
   onOpenDesigner,
   onOpenPage,
   onSwitchMode,
 }: Props) {
-  const relatedPage = RELATED_PAGES[drug.id];
-  const dosing = mode === "adult" ? drug.adult : drug.pediatric;
+  const relatedPage = lane === "oral" ? undefined : RELATED_PAGES[drug.id];
+  const allDosing = mode === "adult" ? drug.adult : drug.pediatric;
+  const visibleRoutes: Route[] = lane === "oral"
+    ? ["po"]
+    : lane === "injectable"
+      ? ["iv", "im", "inhalation"]
+      : allDosing
+        ? (Object.keys(allDosing) as Route[])
+        : [];
+  const dosing = allDosing
+    ? Object.fromEntries(
+        visibleRoutes.filter((route) => (allDosing[route]?.length ?? 0) > 0).map((route) => [route, allDosing[route]]),
+      ) as Partial<Record<Route, Dose[]>>
+    : undefined;
   const otherModeLabel = mode === "adult" ? "小児" : "成人";
-  const hasOtherMode = !!(mode === "adult" ? drug.pediatric : drug.adult);
+  const otherModeDosing = mode === "adult" ? drug.pediatric : drug.adult;
+  const hasOtherMode = visibleRoutes.some((route) => (otherModeDosing?.[route]?.length ?? 0) > 0);
   const activeBand = resolveRenalBand(patient);
-  const activeIvRule = renalRuleForPatient(drug, patient, "iv");
-  const activePoRule = renalRuleForPatient(drug, patient, "po");
-  const usesCustomRenalRules = !!(drug.renalRules?.iv || drug.renalRules?.po);
-  const renalInputResolved = !!patient.rrt || usesCustomRenalRules
-    ? !!patient.rrt || !!activeIvRule || !!activePoRule
+  const showIvRenal = lane !== "oral" && !!drug.renal;
+  const showPoRenal = lane !== "injectable" && !!drug.renalPo;
+  const activeIvRule = showIvRenal ? renalRuleForPatient(drug, patient, "iv") : null;
+  const activePoRule = showPoRenal ? renalRuleForPatient(drug, patient, "po") : null;
+  const usesCustomRenalRules =
+    (showIvRenal && !!drug.renalRules?.iv) || (showPoRenal && !!drug.renalRules?.po);
+  const hasRrt = patient.rrt !== "none";
+  const renalInputResolved = hasRrt || usesCustomRenalRules
+    ? hasRrt || !!activeIvRule || !!activePoRule
     : activeBand != null;
-  const offLabel = offLabelForDrug(drug.id).filter((use) =>
-    (use.populations ?? ["adult"]).includes(mode),
-  );
+  const hasRelevantRenal = showIvRenal || showPoRenal || !!drug.renalNote;
+  const offLabel = offLabelForDrug(drug.id)
+    .filter((use) => (use.populations ?? ["adult"]).includes(mode))
+    .flatMap((use) => {
+      const productLabel = productLabelForLane(use.productLabel, lane);
+      return productLabel ? [{ ...use, productLabel }] : [];
+    });
 
   return (
     <div>
@@ -186,7 +225,7 @@ export function DrugDetail({
       </section>
 
       {/* ---- 腎機能（原典の腎機能低下時の表は成人向けのため、小児では表示しない） ---- */}
-      {mode === "pediatric" && (drug.renal || drug.renalPo) && (
+      {mode === "pediatric" && (showIvRenal || showPoRenal) && (
         <section className="section dosing-primary">
           <h3>腎機能低下時・透析・CHDF</h3>
           <p className="empty" style={{ padding: "12px 0" }}>
@@ -196,7 +235,7 @@ export function DrugDetail({
         </section>
       )}
 
-      {mode === "adult" && (drug.renal || drug.renalPo || drug.renalNote) && (
+      {mode === "adult" && hasRelevantRenal && (
         <section className="section dosing-primary">
           <h3>腎機能低下時・透析・CHDF</h3>
           {drug.renalAdjustmentNotRequired && (
@@ -210,7 +249,7 @@ export function DrugDetail({
             </p>
           )}
 
-          {drug.renal && (
+          {showIvRenal && drug.renal && (
             <>
               <div className="dose-ind" style={{ color: "var(--accent)" }}>注射</div>
               <div className="renal-grid" style={{ marginBottom: 14 }}>
@@ -245,7 +284,7 @@ export function DrugDetail({
             </>
           )}
 
-          {drug.renalPo && (
+          {showPoRenal && drug.renalPo && (
             <>
               <div className="dose-ind" style={{ color: "var(--accent)" }}>経口</div>
               <div className="renal-grid" style={{ marginBottom: 14 }}>
@@ -280,7 +319,9 @@ export function DrugDetail({
             </>
           )}
 
-          {activeBand && !drug.renal?.[activeBand] && !drug.renalPo?.[activeBand] && (
+          {activeBand &&
+            !(showIvRenal && drug.renal?.[activeBand]) &&
+            !(showPoRenal && drug.renalPo?.[activeBand]) && (
             <div className="banner warn">
               この患者の腎機能区分（{RENAL_BAND_LABEL[activeBand]}）について、
               <b>原典に記載がありません</b>。専門家へ相談してください。
@@ -391,7 +432,7 @@ export function DrugDetail({
       )}
 
       {/* ---- 製剤情報 ---- */}
-      {drug.formulations && drug.formulations.length > 0 && (
+      {lane !== "oral" && drug.formulations && drug.formulations.length > 0 && (
         <section className="section">
           <h3>製剤情報</h3>
           <button className="tile" style={{ marginBottom: 12 }} onClick={() => onOpenPage("formulary")}>

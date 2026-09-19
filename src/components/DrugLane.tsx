@@ -4,6 +4,7 @@ import { REFERENCE } from "../data";
 import { searchDrugs, drugSuggestions } from "../lib/search";
 import { convertPerKg, renalDoseForPatient } from "../lib/calc";
 import type { DrugCategory } from "../types";
+import { PatientPanel } from "./PatientPanel";
 import {
   AWARE_BUCKETS,
   classesInLane,
@@ -21,14 +22,49 @@ import {
 
 export function ModePicker({ onPick }: { onPick: (m: PatientMode) => void }) {
   return (
-    <div className="top-grid two">
-      <button className="top-btn adult" onClick={() => onPick("adult")}>
-        成人
-      </button>
-      <button className="top-btn paed" onClick={() => onPick("pediatric")}>
-        小児
-      </button>
-    </div>
+    <section className="flow-shell">
+      <p className="flow-step">1 / 2　対象を選択</p>
+      <h3 className="flow-title">成人または小児を選んでください</h3>
+      <div className="top-grid two mode-choices">
+        <button className="top-btn adult mode-choice" onClick={() => onPick("adult")}>
+          <span><b>成人</b><small>成人用量を表示</small></span>
+          <span className="mode-choice-arrow" aria-hidden="true">→</span>
+        </button>
+        <button className="top-btn paed mode-choice" onClick={() => onPick("pediatric")}>
+          <span><b>小児</b><small>小児用量を表示</small></span>
+          <span className="mode-choice-arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export function PatientStep({
+  lane,
+  mode,
+  patient,
+  onChange,
+  onContinue,
+}: {
+  lane: Lane;
+  mode: PatientMode;
+  patient: PatientState;
+  onChange: (patient: PatientState) => void;
+  onContinue: () => void;
+}) {
+  return (
+    <section className={`flow-shell patient-step ${mode}`}>
+      <p className="flow-step">2 / 2　患者条件</p>
+      <div className="flow-heading">
+        <div>
+          <h2>{mode === "adult" ? "成人" : "小児"}の患者条件</h2>
+          <p>{lane === "oral" ? "内服薬" : "注射薬"}の用量表示に使用します。</p>
+        </div>
+      </div>
+      <PatientPanel mode={mode} patient={patient} onChange={onChange} />
+      <p className="flow-note">必要な項目だけ入力できます。未入力でも原典の用量表は確認できます。</p>
+      <button className="flow-primary" onClick={onContinue}>この条件で薬剤を選ぶ</button>
+    </section>
   );
 }
 
